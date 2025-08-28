@@ -56,24 +56,24 @@ func TestCafeCount(t *testing.T) {
 	handler := http.HandlerFunc(mainHandle)
 
 	requests := []struct {
-		city  string // передаваемый город
-		count int    // передаваемое значение count
-		want  int    // ожидаемое количество кафе в ответе
+		city  string
+		count int
+		want  int
 	}{
 		{"moscow", 0, 0},
 		{"moscow", 1, 1},
 		{"moscow", 2, 2},
-		{"moscow", 100, cityMaxCount("moscow")},
+		{"moscow", 100, min(100, len(cafeList["moscow"]))},
 
 		{"tula", 0, 0},
 		{"tula", 1, 1},
 		{"tula", 2, 2},
-		{"tula", 100, cityMaxCount("tula")},
+		{"tula", 100, min(100, len(cafeList["tula"]))},
 	}
 
 	for _, v := range requests {
 		response := httptest.NewRecorder()
-		requestURL := buildCafeCountRequestURL(v.city, v.count)
+		requestURL := fmt.Sprintf("/cafe?count=%d&city=%s", v.count, v.city)
 		req := httptest.NewRequest("GET", requestURL, nil)
 		handler.ServeHTTP(response, req)
 
@@ -81,36 +81,17 @@ func TestCafeCount(t *testing.T) {
 
 		body := splitResponseBody(response.Body.String())
 
-		assert.Equal(t, v.want, len(body))
+		assert.Len(t, body, v.want)
 	}
-
-}
-
-// buildCafeCountRequestURL строит URL для тестового запроса для TestCafeCount
-func buildCafeCountRequestURL(city string, count int) string {
-	return fmt.Sprintf("/cafe?count=%d&city=%s", count, city)
-}
-
-// splitResponseBody разделяет строку на слайс строк
-func splitResponseBody(body string) []string {
-	if body == "" {
-		return []string{}
-	}
-	return strings.Split(body, ",")
-}
-
-// getCityCafeCount возвращает общее количество кафе в городе
-func cityMaxCount(city string) int {
-	return len(cafeList[city])
 }
 
 func TestCafeSearch(t *testing.T) {
 	handler := http.HandlerFunc(mainHandle)
 
 	requests := []struct {
-		city      string // передаваемый город
-		search    string // передаваемое значение search
-		wantCount int    // ожидаемое количество кафе в ответе
+		city      string
+		search    string
+		wantCount int
 	}{
 		{"moscow", "фасоль", 0},
 		{"moscow", "кофе", 2},
@@ -123,22 +104,24 @@ func TestCafeSearch(t *testing.T) {
 
 	for _, v := range requests {
 		response := httptest.NewRecorder()
-		requestURL := buildCafeSearchRequestURL(v.city, v.search)
+		requestURL := fmt.Sprintf("/cafe?city=%s&search=%s", v.city, v.search)
 		req := httptest.NewRequest("GET", requestURL, nil)
 		handler.ServeHTTP(response, req)
 
 		require.Equal(t, http.StatusOK, response.Code)
 
 		body := splitResponseBody(response.Body.String())
-		
-		assert.Equal(t, v.wantCount, len(body))
+
+		assert.Len(t, body, v.wantCount)
 		for _, str := range body {
-			assert.True(t, strings.Contains(strings.ToLower(str), strings.ToLower(v.search)))
+			assert.Contains(t, strings.ToLower(str), strings.ToLower(v.search))
 		}
 	}
 }
 
-// buildCafeCountRequestURL строит URL для тестового запроса для TestCafeSearch
-func buildCafeSearchRequestURL(city, search string) string {
-	return fmt.Sprintf("/cafe?city=%s&search=%s", city, search)
+func splitResponseBody(body string) []string {
+	if body == "" {
+		return []string{}
+	}
+	return strings.Split(body, ",")
 }
